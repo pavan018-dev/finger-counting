@@ -3,7 +3,7 @@
 #  Run : python finger_counter.py
 #  Open: http://localhost:5000 in your browser
 # ============================================================
-import os, math, cv2, threading, urllib.request
+import os, math, time, cv2, threading, urllib.request
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
@@ -26,7 +26,7 @@ HAND_CONNECTIONS = [
     (5,9),(9,10),(10,11),(11,12), (9,13),(13,14),(14,15),(15,16),
     (13,17),(17,18),(18,19),(19,20), (0,17)
 ]
-state = {"frame": None, "count": 0, "detected": False}
+state = {"frame": None, "count": 0, "detected": False, "camera_available": False}
 lock  = threading.Lock()
 
 def dist(p1, p2):
@@ -46,9 +46,21 @@ def count_fingers(lm):
 
 def capture_loop():
     cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        # Hosting services (including Render) do not have access to a visitor's
+        # webcam. Keep the web app responsive rather than spinning forever.
+        with lock:
+            state["camera_available"] = False
+        return
+
+    with lock:
+        state["camera_available"] = True
+
     while True:
         ok, frame = cap.read()
-        if not ok: continue
+        if not ok:
+            time.sleep(0.05)
+            continue
         frame = cv2.flip(frame, 1)
         h, w, _ = frame.shape
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -87,14 +99,29 @@ def index():
 
 @app.route("/video_feed")
 def video_feed():
+    with lock:
+        camera_available = state["camera_available"]
+    if not camera_available:
+        return ("No server camera is available. Run locally to use webcam detection.", 503)
     return Response(generate_stream(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 @app.route("/count")
 def get_count():
     with lock:
-        return jsonify(count=state["count"], detected=state["detected"])
+        return jsonify(
+            count=state["count"],
+            detected=state["detected"],
+            camera_available=state["camera_available"],
+        )
+
+@app.route("/health")
+def health():
+    return jsonify(status="ok")
+
+# Start capture at import time so production WSGI servers (Gunicorn) work as
+# well as `python finger_counter.py`.
+threading.Thread(target=capture_loop, daemon=True).start()
 
 if __name__ == "__main__":
-    threading.Thread(target=capture_loop, daemon=True).start()
     print("[INFO] Server running at http://localhost:5000")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)

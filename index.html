@@ -228,6 +228,7 @@
     const statusPill  = document.getElementById('statusPill');
     const countLabel  = document.getElementById('countLabel');
     const fingerIcons = document.getElementById('fingerIcons');
+    const feed        = document.getElementById('feed');
 
     let lastCount = -1;
 
@@ -237,7 +238,15 @@
         const res  = await fetch('/count');
         const data = await res.json();
 
-        const { count, detected } = data;
+        const { count, detected, camera_available } = data;
+
+        if (!camera_available) {
+          statusPill.textContent = 'ℹ️ Webcam available in local mode only';
+          statusPill.className = 'status-pill undetected';
+          countLabel.textContent = 'This hosted demo has no server webcam.';
+          fingerIcons.textContent = '';
+          return;
+        }
         const clr = COLORS[count] ?? '#fff';
 
         // Update status pill
@@ -282,6 +291,8 @@
 
     setInterval(poll, 150);   // poll every 150 ms
     poll();                    // immediate first call
+
+    feed.addEventListener('error', () => feed.style.display = 'none');
   </script>
 </body>
 </html>

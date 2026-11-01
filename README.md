@@ -33,6 +33,18 @@ A small Flask application that reads your webcam feed, detects one hand with Med
 
 5. Visit [http://localhost:5000](http://localhost:5000) in your browser and allow camera access if prompted.
 
+## Deploy on Render
+
+This repository includes `render.yaml`, so you can deploy it as a Render Blueprint:
+
+1. In Render, select **New +** → **Blueprint** and connect this GitHub repository.
+2. Review the detected `finger-counting` web service and create it.
+3. Render installs the packages in `requirements.txt` and runs the Gunicorn start command from `render.yaml`.
+
+The deployment has a `/health` endpoint for Render's health check.
+
+> **Important:** Render runs the Python code on a remote server, which cannot access a visitor's webcam. The application will deploy successfully, but live finger detection works only when the server runs on a computer with a camera (for example, locally with `python finger_counter.py`). The hosted page explains this instead of continually attempting to read an unavailable camera.
+
 ## Project files
 
 - `finger_counter.py` — Flask server, webcam capture, landmark detection, and finger-counting logic.
