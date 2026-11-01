@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Finger Counting System</title>
+
+  <style>
+    /* ── Reset & base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      padding: 20px;
+    }
+
+    /* ── Header ────────────────────────────────────── */
+    header { text-align: center; margin-bottom: 28px; }
+    header h1 {
+      font-size: 2rem;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #00f2fe, #4facfe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header p { color: #aaa; font-size: 0.9rem; margin-top: 6px; }
+
+    /* ── Card layout ───────────────────────────────── */
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      padding: 24px;
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 960px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    /* ── Video feed ────────────────────────────────── */
+    .video-wrap {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid rgba(79,172,254,0.4);
+      box-shadow: 0 0 30px rgba(79,172,254,0.2);
+    }
+    .video-wrap img {
+      width: 480px;
+      max-width: 100%;
+      display: block;
+    }
+    /* Live badge */
+    .live-badge {
+      position: absolute;
+      top: 12px; left: 12px;
+      background: rgba(255,40,40,0.85);
+      border-radius: 30px;
+      padding: 3px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      background: #fff;
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Right panel ───────────────────────────────── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      min-width: 200px;
+    }
+
+    /* Big count circle */
+    .count-circle {
+      width: 150px; height: 150px;
+      border-radius: 50%;
+      background: conic-gradient(var(--clr, #4facfe) 0%, rgba(255,255,255,0.05) 0%);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      transition: background 0.4s;
+      box-shadow: 0 0 30px rgba(79,172,254,0.3);
+    }
+    .count-circle::before {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      background: #1a1a2e;
+    }
+    .count-number {
+      position: relative;
+      font-size: 4rem;
+      font-weight: 900;
+      color: var(--clr, #4facfe);
+      transition: color 0.4s, transform 0.2s;
+      line-height: 1;
+    }
+    .count-number.bump { transform: scale(1.25); }
+
+    /* Status pill */
+    .status-pill {
+      padding: 8px 22px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      transition: background 0.4s, color 0.4s;
+    }
+    .status-pill.detected   { background:#00c48c22; color:#00c48c; border:1px solid #00c48c66; }
+    .status-pill.undetected { background:#ff4d4d22; color:#ff6b6b; border:1px solid #ff4d4d66; }
+
+    /* Message label */
+    .count-label {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--clr, #4facfe);
+      text-align: center;
+      transition: color 0.4s;
+      min-height: 28px;
+    }
+
+    /* Finger emoji visual */
+    .finger-icons { font-size: 2rem; letter-spacing: 4px; min-height: 40px; }
+
+    /* Info box */
+    .info-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.78rem;
+      color: #aaa;
+      line-height: 1.8;
+      width: 100%;
+    }
+    .info-box b { color: #ddd; }
+
+    /* ── Footer ────────────────────────────────────── */
+    footer {
+      margin-top: 24px;
+      font-size: 0.75rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>✋ Real-Time Finger Counting System</h1>
+    <p>Python · OpenCV · MediaPipe · Flask</p>
+  </header>
+
+  <div class="card">
+
+    <!-- Live webcam stream -->
+    <div class="video-wrap">
+      <img id="feed" src="/video_feed" alt="Webcam Feed" />
+      <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="panel">
+
+      <!-- Big count display -->
+      <div class="count-circle" id="circle">
+        <span class="count-number" id="bigNum">-</span>
+      </div>
+
+      <!-- Detection status -->
+      <div class="status-pill undetected" id="statusPill">No Hand Detected</div>
+
+      <!-- Text label -->
+      <div class="count-label" id="countLabel">Waiting for hand…</div>
+
+      <!-- Emoji fingers -->
+      <div class="finger-icons" id="fingerIcons"></div>
+
+      <!-- Key info -->
+      <div class="info-box">
+        <b>How it works:</b><br>
+        MediaPipe detects 21 hand joints.<br>
+        Tip y &lt; PIP y → finger is raised.<br>
+        Thumb uses x-axis comparison.<br><br>
+        <b>Controls:</b><br>
+        Refresh page to restart stream.
+      </div>
+
+    </div>
+  </div>
+
+  <footer>Mini Project — College CS/IT &nbsp;|&nbsp; Press Ctrl+C in terminal to stop</footer>
+
+  <script>
+    // ── Colour theme per count ──────────────────────────────
+    const COLORS = {
+      0: '#ff4d4d',   // red
+      1: '#ff9933',   // orange
+      2: '#ffdd57',   // yellow
+      3: '#2ecc71',   // green
+      4: '#4facfe',   // blue
+      5: '#a855f7',   // purple
+    };
+    const EMOJIS = ['✊','☝️','✌️','🤟','🖖','🖐️'];
+
+    const bigNum      = document.getElementById('bigNum');
+    const circle      = document.getElementById('circle');
+    const statusPill  = document.getElementById('statusPill');
+    const countLabel  = document.getElementById('countLabel');
+    const fingerIcons = document.getElementById('fingerIcons');
+
+    let lastCount = -1;
+
+    // ── Poll /count every 150 ms ────────────────────────────
+    async function poll() {
+      try {
+        const res  = await fetch('/count');
+        const data = await res.json();
+
+        const { count, detected } = data;
+        const clr = COLORS[count] ?? '#fff';
+
+        // Update status pill
+        if (detected) {
+          statusPill.textContent = '✅ Hand Detected';
+          statusPill.className   = 'status-pill detected';
+        } else {
+          statusPill.textContent = '❌ No Hand Detected';
+          statusPill.className   = 'status-pill undetected';
+        }
+
+        // Update count display only when value changes
+        if (count !== lastCount) {
+          lastCount = count;
+
+          // CSS variable for colour
+          document.documentElement.style.setProperty('--clr', clr);
+          circle.style.setProperty('--clr', clr);
+
+          bigNum.textContent = detected ? count : '-';
+          bigNum.style.color = clr;
+          countLabel.textContent = detected ? `Fingers Count: ${count}` : 'Waiting for hand…';
+          countLabel.style.color = clr;
+
+          fingerIcons.textContent = detected ? EMOJIS[count] ?? '' : '';
+
+          // Conic gradient arc based on count/5
+          const pct = detected ? (count / 5) * 100 : 0;
+          circle.style.background =
+            `conic-gradient(${clr} ${pct}%, rgba(255,255,255,0.05) 0%)`;
+
+          // Bump animation
+          bigNum.classList.remove('bump');
+          void bigNum.offsetWidth;          // reflow to restart animation
+          bigNum.classList.add('bump');
+          setTimeout(() => bigNum.classList.remove('bump'), 200);
+        }
+      } catch (e) {
+        statusPill.textContent = '⚠ Server not responding';
+      }
+    }
+
+    setInterval(poll, 150);   // poll every 150 ms
+    poll();                    // immediate first call
+  </script>
+</body>
+</html>
