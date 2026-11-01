@@ -4,9 +4,6 @@
 #  Open: http://localhost:5000 in your browser
 # ============================================================
 import os, math, time, cv2, threading, urllib.request
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
 from flask import Flask, Response, jsonify
 
 app = Flask(__name__)
@@ -14,12 +11,6 @@ MODEL = os.path.join(os.path.dirname(__file__), "hand_landmarker.task")
 if not os.path.exists(MODEL):
     url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
     urllib.request.urlretrieve(url, MODEL)
-
-options = vision.HandLandmarkerOptions(
-    base_options=python.BaseOptions(model_asset_path=MODEL),
-    num_hands=1, min_hand_detection_confidence=0.6
-)
-detector = vision.HandLandmarker.create_from_options(options)
 
 HAND_CONNECTIONS = [
     (0,1),(1,2),(2,3),(3,4), (0,5),(5,6),(6,7),(7,8),
@@ -55,6 +46,19 @@ def capture_loop():
 
     with lock:
         state["camera_available"] = True
+
+    # Import MediaPipe only after confirming that a local camera is available.
+    # This keeps cloud deployments healthy: their servers do not have webcams
+    # and may not include the native graphics libraries MediaPipe needs.
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
+    options = vision.HandLandmarkerOptions(
+        base_options=python.BaseOptions(model_asset_path=MODEL),
+        num_hands=1, min_hand_detection_confidence=0.6,
+    )
+    detector = vision.HandLandmarker.create_from_options(options)
 
     while True:
         ok, frame = cap.read()
