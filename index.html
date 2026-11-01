@@ -57,11 +57,12 @@
       border: 2px solid rgba(79,172,254,0.4);
       box-shadow: 0 0 30px rgba(79,172,254,0.2);
     }
-    .video-wrap img {
+    .video-wrap video {
       width: 480px;
       max-width: 100%;
       display: block;
     }
+    #overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
     /* Live badge */
     .live-badge {
       position: absolute;
@@ -168,14 +169,15 @@
 
   <header>
     <h1>✋ Real-Time Finger Counting System</h1>
-    <p>Python · OpenCV · MediaPipe · Flask</p>
+    <p>Browser Camera · MediaPipe · Flask</p>
   </header>
 
   <div class="card">
 
     <!-- Live webcam stream -->
     <div class="video-wrap">
-      <img id="feed" src="/video_feed" alt="Webcam Feed" />
+      <video id="feed" autoplay playsinline muted aria-label="Live webcam preview"></video>
+      <canvas id="overlay" aria-hidden="true"></canvas>
       <div class="live-badge"><span class="live-dot"></span> LIVE</div>
     </div>
 
@@ -199,19 +201,19 @@
       <!-- Key info -->
       <div class="info-box">
         <b>How it works:</b><br>
-        MediaPipe detects 21 hand joints.<br>
-        Tip y &lt; PIP y → finger is raised.<br>
-        Thumb uses x-axis comparison.<br><br>
+        MediaPipe detects 21 hand joints in your browser.<br>
+        Your camera feed stays on this device.<br><br>
         <b>Controls:</b><br>
-        Refresh page to restart stream.
+        Allow camera access when prompted.
       </div>
 
     </div>
   </div>
 
-  <footer>Mini Project — College CS/IT &nbsp;|&nbsp; Press Ctrl+C in terminal to stop</footer>
+  <footer>Mini Project — College CS/IT</footer>
 
-  <script>
+  <script type="module">
+    import { HandLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22';
     // ── Colour theme per count ──────────────────────────────
     const COLORS = {
       0: '#ff4d4d',   // red
@@ -229,70 +231,80 @@
     const countLabel  = document.getElementById('countLabel');
     const fingerIcons = document.getElementById('fingerIcons');
     const feed        = document.getElementById('feed');
+    const overlay     = document.getElementById('overlay');
+    const context     = overlay.getContext('2d');
 
     let lastCount = -1;
+    const CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
 
-    // ── Poll /count every 150 ms ────────────────────────────
-    async function poll() {
-      try {
-        const res  = await fetch('/count');
-        const data = await res.json();
+    const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    function countFingers(points) {
+      const palm = distance(points[0], points[9]) || 0.001;
+      let count = distance(points[4], points[17]) > distance(points[3], points[17]) * 1.15 ? 1 : 0;
+      for (const [tip, pip] of [[8,6], [12,10], [16,14], [20,18]]) {
+        if (distance(points[tip], points[0]) > distance(points[pip], points[0]) + palm * 0.15) count++;
+      }
+      return count;
+    }
 
-        const { count, detected, camera_available } = data;
+    function updateDisplay(count, detected) {
+      const clr = COLORS[count] ?? '#fff';
+      statusPill.textContent = detected ? '✅ Hand Detected' : '❌ No Hand Detected';
+      statusPill.className = `status-pill ${detected ? 'detected' : 'undetected'}`;
+      if (count === lastCount && detected) return;
+      lastCount = count;
+      document.documentElement.style.setProperty('--clr', clr);
+      circle.style.setProperty('--clr', clr);
+      bigNum.textContent = detected ? count : '-';
+      bigNum.style.color = clr;
+      countLabel.textContent = detected ? `Fingers Count: ${count}` : 'Show your hand to the camera…';
+      countLabel.style.color = clr;
+      fingerIcons.textContent = detected ? EMOJIS[count] ?? '' : '';
+      const pct = detected ? (count / 5) * 100 : 0;
+      circle.style.background = `conic-gradient(${clr} ${pct}%, rgba(255,255,255,0.05) 0%)`;
+      bigNum.classList.remove('bump'); void bigNum.offsetWidth; bigNum.classList.add('bump');
+      setTimeout(() => bigNum.classList.remove('bump'), 200);
+    }
 
-        if (!camera_available) {
-          statusPill.textContent = 'ℹ️ Webcam available in local mode only';
-          statusPill.className = 'status-pill undetected';
-          countLabel.textContent = 'This hosted demo has no server webcam.';
-          fingerIcons.textContent = '';
-          return;
-        }
-        const clr = COLORS[count] ?? '#fff';
-
-        // Update status pill
-        if (detected) {
-          statusPill.textContent = '✅ Hand Detected';
-          statusPill.className   = 'status-pill detected';
-        } else {
-          statusPill.textContent = '❌ No Hand Detected';
-          statusPill.className   = 'status-pill undetected';
-        }
-
-        // Update count display only when value changes
-        if (count !== lastCount) {
-          lastCount = count;
-
-          // CSS variable for colour
-          document.documentElement.style.setProperty('--clr', clr);
-          circle.style.setProperty('--clr', clr);
-
-          bigNum.textContent = detected ? count : '-';
-          bigNum.style.color = clr;
-          countLabel.textContent = detected ? `Fingers Count: ${count}` : 'Waiting for hand…';
-          countLabel.style.color = clr;
-
-          fingerIcons.textContent = detected ? EMOJIS[count] ?? '' : '';
-
-          // Conic gradient arc based on count/5
-          const pct = detected ? (count / 5) * 100 : 0;
-          circle.style.background =
-            `conic-gradient(${clr} ${pct}%, rgba(255,255,255,0.05) 0%)`;
-
-          // Bump animation
-          bigNum.classList.remove('bump');
-          void bigNum.offsetWidth;          // reflow to restart animation
-          bigNum.classList.add('bump');
-          setTimeout(() => bigNum.classList.remove('bump'), 200);
-        }
-      } catch (e) {
-        statusPill.textContent = '⚠ Server not responding';
+    function draw(points) {
+      overlay.width = feed.videoWidth;
+      overlay.height = feed.videoHeight;
+      context.clearRect(0, 0, overlay.width, overlay.height);
+      context.strokeStyle = '#ffffff'; context.lineWidth = 2;
+      for (const [a, b] of CONNECTIONS) {
+        context.beginPath(); context.moveTo(points[a].x * overlay.width, points[a].y * overlay.height);
+        context.lineTo(points[b].x * overlay.width, points[b].y * overlay.height); context.stroke();
+      }
+      context.fillStyle = '#00ff88';
+      for (const point of points) {
+        context.beginPath(); context.arc(point.x * overlay.width, point.y * overlay.height, 4, 0, Math.PI * 2); context.fill();
       }
     }
 
-    setInterval(poll, 150);   // poll every 150 ms
-    poll();                    // immediate first call
+    async function startCamera() {
+      try {
+        const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
+        const landmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' },
+          runningMode: 'VIDEO', numHands: 1, minHandDetectionConfidence: 0.6
+        });
+        feed.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        await feed.play();
+        const detect = () => {
+          const result = landmarker.detectForVideo(feed, performance.now());
+          const points = result.landmarks?.[0];
+          if (points) { draw(points); updateDisplay(countFingers(points), true); }
+          else { context.clearRect(0, 0, overlay.width, overlay.height); updateDisplay(0, false); }
+          requestAnimationFrame(detect);
+        };
+        detect();
+      } catch (e) {
+        statusPill.textContent = '⚠ Camera permission is required';
+        countLabel.textContent = 'Allow camera access, then refresh the page.';
+      }
+    }
 
-    feed.addEventListener('error', () => feed.style.display = 'none');
+    startCamera();
   </script>
 </body>
 </html>

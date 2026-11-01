@@ -1,11 +1,11 @@
 # Real-Time Finger Counting System
 
-A small Flask application that reads your webcam feed, detects one hand with MediaPipe, and displays the number of extended fingers in a polished browser interface.
+A Flask-hosted web application that uses MediaPipe in the visitor's browser to detect one hand and display the number of extended fingers.
 
 ## Features
 
-- Live webcam streaming in the browser
-- Real-time hand landmark detection via MediaPipe Tasks
+- Live browser webcam preview
+- Real-time hand landmark detection via MediaPipe Tasks in the browser
 - Counts zero through five raised fingers
 - On-screen hand skeleton and live detection status
 - Automatically downloads the hand-landmarker model if it is missing
@@ -13,7 +13,7 @@ A small Flask application that reads your webcam feed, detects one hand with Med
 ## Requirements
 
 - Python 3.9 or newer
-- A webcam available to OpenCV
+- A browser that supports camera access
 
 ## Setup
 
@@ -43,18 +43,18 @@ This repository includes `render.yaml`, so you can deploy it as a Render Bluepri
 
 The deployment has a `/health` endpoint for Render's health check.
 
-> **Important:** Render runs the Python code on a remote server, which cannot access a visitor's webcam. The application will deploy successfully, but live finger detection works only when the server runs on a computer with a camera (for example, locally with `python finger_counter.py`). The hosted page explains this instead of continually attempting to read an unavailable camera.
+> **Camera privacy:** The hosted site requests the visitor's camera in their browser. Hand detection runs there, so Render never receives the camera feed. Use HTTPS (provided automatically by Render) for browser camera access.
 
 ## Project files
 
-- `finger_counter.py` — Flask server, webcam capture, landmark detection, and finger-counting logic.
+- `finger_counter.py` — Flask server for the web application.
 - `index.html` — browser dashboard for the live feed and count.
 - `requirements.txt` — Python dependencies.
 - `hand_landmarker.task` — MediaPipe hand-landmarker model.
 
 ## Notes
 
-The application uses the first detected hand and is designed for local use. Good lighting and keeping your hand clearly in frame improve detection accuracy.
+The application uses the first detected hand. Good lighting and keeping your hand clearly in frame improve detection accuracy.
 
 ## License
 
