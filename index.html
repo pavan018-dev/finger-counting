@@ -227,7 +227,7 @@
   <footer>Mini Project — College CS/IT</footer>
 
   <script type="module">
-    import { HandLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22';
+    import { HandLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs';
     // ── Colour theme per count ──────────────────────────────
     const COLORS = {
       0: '#ff4d4d',   // red
@@ -302,7 +302,7 @@
         startButton.textContent = 'Starting camera…';
         statusPill.textContent = '⏳ Requesting camera access';
         countLabel.textContent = 'Approve the camera prompt in your browser.';
-        const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
+        const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm');
         const landmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' },
           runningMode: 'VIDEO', numHands: 1, minHandDetectionConfidence: 0.6
