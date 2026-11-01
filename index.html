@@ -141,6 +141,18 @@
       min-height: 28px;
     }
 
+    .camera-button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 18px;
+      background: linear-gradient(90deg, #00c6ff, #4facfe);
+      color: #071226;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 800;
+    }
+    .camera-button:disabled { opacity: .65; cursor: wait; }
+
     /* Finger emoji visual */
     .finger-icons { font-size: 2rem; letter-spacing: 4px; min-height: 40px; }
 
@@ -195,6 +207,8 @@
       <!-- Text label -->
       <div class="count-label" id="countLabel">Waiting for hand…</div>
 
+      <button class="camera-button" id="startCamera" type="button">Enable Camera</button>
+
       <!-- Emoji fingers -->
       <div class="finger-icons" id="fingerIcons"></div>
 
@@ -233,6 +247,7 @@
     const feed        = document.getElementById('feed');
     const overlay     = document.getElementById('overlay');
     const context     = overlay.getContext('2d');
+    const startButton = document.getElementById('startCamera');
 
     let lastCount = -1;
     const CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
@@ -283,6 +298,10 @@
 
     async function startCamera() {
       try {
+        startButton.disabled = true;
+        startButton.textContent = 'Starting camera…';
+        statusPill.textContent = '⏳ Requesting camera access';
+        countLabel.textContent = 'Approve the camera prompt in your browser.';
         const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
         const landmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' },
@@ -290,6 +309,7 @@
         });
         feed.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
         await feed.play();
+        startButton.style.display = 'none';
         const detect = () => {
           const result = landmarker.detectForVideo(feed, performance.now());
           const points = result.landmarks?.[0];
@@ -299,12 +319,14 @@
         };
         detect();
       } catch (e) {
-        statusPill.textContent = '⚠ Camera permission is required';
-        countLabel.textContent = 'Allow camera access, then refresh the page.';
+        statusPill.textContent = '⚠ Camera could not start';
+        countLabel.textContent = `${e.name || 'Error'}: ${e.message || 'Allow camera access and try again.'}`;
+        startButton.disabled = false;
+        startButton.textContent = 'Try Camera Again';
       }
     }
 
-    startCamera();
+    startButton.addEventListener('click', startCamera);
   </script>
 </body>
 </html>
